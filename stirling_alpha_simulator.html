@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alpha Stirling — simulatore interattivo</title>
+<style>
+:root{--gold:#d8ad4d;--gold2:#ffe39a;--red:#ff3d4c;--cyan:#48dcff;--mut:#aeb5c8}*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#000;color:#f7f7f5;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}#app{position:fixed;inset:0;background:radial-gradient(circle at 53% 42%,#0a0a0b 0,#000 58%)}canvas{display:block}.panel{position:fixed;z-index:5;background:rgba(8,9,13,.78);border:1px solid rgba(216,173,77,.22);box-shadow:0 20px 60px #000;border-radius:18px;backdrop-filter:blur(12px)}.panel:before{content:"";position:absolute;inset:0;border-radius:18px;background-image:radial-gradient(rgba(255,255,255,.09) 1px,transparent 1px);background-size:5px 5px;opacity:.20;pointer-events:none}.hud{left:22px;top:22px;width:392px;padding:24px 24px 20px}.title{position:relative;text-align:center;letter-spacing:.25em;color:#f3cd72;font-size:20px;font-weight:900}.sub{position:relative;text-align:center;letter-spacing:.18em;color:#b5bdcf;text-transform:uppercase;font-size:12px;font-weight:800;margin-top:7px}.stats{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:30px 0 18px}.lab{letter-spacing:.17em;color:#b5bdcf;text-transform:uppercase;font-size:12px;font-weight:900}.val{font-size:24px;margin-top:6px}.stat{text-align:center}.red{color:var(--red);font-weight:900}.cyan{color:var(--cyan);font-weight:900}.ctrl{position:relative;margin:15px 0}.row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.row b,.row span{font-size:12px;letter-spacing:.15em;text-transform:uppercase;font-weight:900}.row span{color:#d8dde9}.row b{color:#eee}input[type=range]{appearance:none;width:100%;height:4px;border-radius:20px;background:#282b37;outline:0}input[type=range]::-webkit-slider-thumb{appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;border:4px solid var(--gold);box-shadow:0 0 22px rgba(255,211,94,.9);cursor:pointer}.tog{position:relative;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:12px}.tog label{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#e2e6ef;font-weight:900}.sw{width:40px;height:20px;border:2px solid var(--gold);border-radius:99px;background:rgba(216,173,77,.15);cursor:pointer;position:relative}.sw:after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:.18s}.sw.on:after{left:20px;background:var(--gold2)}.thermo{right:22px;top:22px;width:395px;padding:16px}.thermo h2{position:relative;margin:0 0 12px;color:#f3cd72;letter-spacing:.16em;text-transform:uppercase;font-size:15px;white-space:nowrap}.tabs{position:relative;display:flex;gap:9px;margin-bottom:10px}.tabs button,.mini button{background:#11131b;color:#dfe4ef;border:1px solid #2c303b;border-radius:11px;padding:8px 11px;font-weight:900;cursor:pointer}.tabs button.active{border-color:var(--gold);color:#ffe39a}.plot{position:relative;width:100%;height:220px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.07);border-radius:12px}.legend{position:relative;margin-top:10px;color:#bac1d1;font-size:13px;line-height:1.35}.phase{font-weight:900;color:#fff}.mini{position:fixed;right:24px;bottom:24px;z-index:6;display:flex;gap:10px}.note{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:min(820px,calc(100vw - 60px));z-index:3;text-align:center;color:#bdc4d4;background:linear-gradient(90deg,transparent,rgba(0,0,0,.58),transparent);padding:10px 20px;font-size:13px}@media(max-width:1000px){.hud{width:340px;left:10px;top:10px}.thermo{right:10px;top:auto;bottom:10px;width:360px}.note,.mini{display:none}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="app"></div>
+<section class="panel hud"><div class="title">ALPHA STIRLING</div><div class="sub">closed-cycle heat engine</div><div class="stats"><div class="stat"><div class="lab">Speed</div><div class="val"><span id="rpm">3</span> RPM</div></div><div class="stat"><div class="lab">Efficiency</div><div class="val"><span id="eta">0.8</span>%</div></div><div class="stat"><div class="lab">Expansion</div><div class="val red"><span id="th">26</span> °C</div></div><div class="stat"><div class="lab">Compression</div><div class="val cyan"><span id="tl">20</span> °C</div></div></div><div class="ctrl"><div class="row"><span>Burner heat</span><b id="heatL">OFF</b></div><input id="heat" type="range" min="0" max="100" value="45"></div><div class="ctrl"><div class="row"><span>Phase shift</span><b id="phaseL">90°</b></div><input id="phase" type="range" min="60" max="120" value="90"></div><div class="ctrl"><div class="row"><span>Load / friction</span><b id="loadL">22%</b></div><input id="load" type="range" min="0" max="90" value="22"></div><div class="ctrl"><div class="row"><span>Gas particles</span><b id="partL">160</b></div><input id="parts" type="range" min="40" max="340" value="160"></div><div class="tog"><label>Working gas</label><div class="sw on" id="gasSw"></div><label>Glass refraction</label><div class="sw on" id="glassSw"></div><label>Thermo diagrams</label><div class="sw on" id="plotSw"></div></div></section>
+<section class="panel thermo" id="thermo"><h2>Ciclo termodinamico interattivo</h2><div class="tabs"><button class="active" id="pv">P-v</button><button id="ts">T-s</button><button id="both">entrambi</button></div><canvas id="plot" class="plot" width="760" height="430"></canvas><div class="legend"><span class="phase" id="phName">1→2 Espansione isoterma</span><br>Il punto luminoso segue il ciclo Stirling ideale: espansione isoterma, rigenerazione, compressione isoterma e rigenerazione.</div></section>
+<div class="mini"><button id="pause">PAUSA</button><button id="reset">RESET</button><button id="cam">CAMERA</button></div><div class="note">Modello qualitativo didattico: cinematica armonica dei due pistoni Alpha sfasati, gas chiuso, rigenerazione e scambio termico caldo/freddo.</div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+
+const $ = id => document.getElementById(id);
+const app = $('app');
+
+/* =========================================================
+   RENDERER / SCENA / CAMERA
+   ========================================================= */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .1, 300);
+camera.position.set(0, 1.4, 12.8);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 0.85, 0);
+
+// environment map (studio soft) per riflessi realistici su metalli e vetro
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+scene.add(new THREE.AmbientLight(0xffffff, .25));
+const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(4, 8, 7);
+key.castShadow = true; key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.near = 0.5; key.shadow.camera.far = 30;
+key.shadow.camera.left = -6; key.shadow.camera.right = 6;
+key.shadow.camera.top = 6; key.shadow.camera.bottom = -6;
+key.shadow.bias = -0.0004; scene.add(key);
+const fill = new THREE.DirectionalLight(0x88aaff, .4); fill.position.set(-5, 2, -4); scene.add(fill);
+const warm = new THREE.PointLight(0xf2c66a, 1.2, 18); warm.position.set(0, 2.4, 5); scene.add(warm);
+
+/* =========================================================
+   MATERIALI
+   ========================================================= */
+const mat = {
+  gold : new THREE.MeshStandardMaterial({color:0xd6aa4b, metalness:.9, roughness:.18}),
+  gold2: new THREE.MeshStandardMaterial({color:0x9d742f, metalness:.8, roughness:.24}),
+  steel: new THREE.MeshStandardMaterial({color:0xcdd3d9, metalness:.8, roughness:.16}),
+  dark : new THREE.MeshStandardMaterial({color:0x20232b, metalness:.5, roughness:.35}),
+  hotP : new THREE.MeshStandardMaterial({color:0xff3a46, metalness:.5, roughness:.30, emissive:0x6b0010, emissiveIntensity:.5}),
+  coldP: new THREE.MeshStandardMaterial({color:0x7fd8ff, metalness:.6, roughness:.25, emissive:0x05354a, emissiveIntensity:.35}),
+  heat : new THREE.MeshStandardMaterial({color:0x551016, emissive:0xff2a1a, emissiveIntensity:.9, roughness:.5})
+};
+let glass = new THREE.MeshPhysicalMaterial({color:0xdff7ff, transparent:true, opacity:.30, transmission:.6, roughness:.04, metalness:0, ior:1.45, thickness:.4, clearcoat:1});
+const gasM = [
+  new THREE.MeshBasicMaterial({color:0xff5a3c}), // 0 caldo
+  new THREE.MeshBasicMaterial({color:0x6eeaff}), // 1 freddo
+  new THREE.MeshBasicMaterial({color:0xffd27a}), // 2 transito tiepido
+  new THREE.MeshBasicMaterial({color:0xffffff})  // 3 scintilla/flusso
+];
+
+/* =========================================================
+   COSTANTI FISICHE / GEOMETRICHE DEL MANOVELLISMO
+   Tutto in coordinate locali del gruppo "mech":
+   centro manovella O = (0,0,0); piano del cinematismo z = 0.
+   ========================================================= */
+const R       = 0.62;                 // raggio di manovella (throw) -> corsa = 2R
+const L       = 2.05;                 // lunghezza biella
+const BETA    = Math.PI / 4;          // semiangolo della V  ->  V = 90°
+const AX_HOT  = Math.PI/2 + BETA;     // asse cilindro caldo  = 135°
+const AX_COLD = Math.PI/2 - BETA;     // asse cilindro freddo = 45°
+const uHot    = {x:Math.cos(AX_HOT),  y:Math.sin(AX_HOT)};   // versore asse caldo
+const uCold   = {x:Math.cos(AX_COLD), y:Math.sin(AX_COLD)};  // versore asse freddo
+const S_HEAD  = 2.95;                 // distanza testa-cilindro dal centro manovella
+const PIST_H  = 0.34;                 // altezza pistone
+const CLEAR   = 0.08;                 // volume morto (clearance)
+const V_REG   = 0.55;                 // volume rigeneratore + condotto (costante)
+const ZH      = 0.20, ZC = -0.20;     // piani delle due bielle (vicini al piano cilindri)
+const Z_FLY   = 1.05;                 // sfalsamento assiale del volano (davanti ai cilindri)
+const PHI_H   = 0;                    // fase costruttiva del perno caldo
+const LpH     = Math.sqrt(L*L - ZH*ZH); // proiezione planare della biella (caldo)
+const LpC     = Math.sqrt(L*L - ZC*ZC); //                                 (freddo)
+
+/* Soluzione del manovellismo di spinta (asse passante per O).
+   s = u.w + sqrt(Lp^2 - R^2 + (u.w)^2),  con |w| = R.            */
+function slide(u, w, Lp){
+  const k = u.x*w.x + u.y*w.y;
+  return k + Math.sqrt(Math.max(0, Lp*Lp - R*R + k*k));
+}
+/* posizione del perno di manovella all'angolo a */
+function pinAt(a){ return {x:R*Math.cos(a), y:R*Math.sin(a)}; }
+
+/* =========================================================
+   COSTRUZIONE 3D
+   ========================================================= */
+const root = new THREE.Group(); scene.add(root);
+root.rotation.x = -0.05;
+const mech = new THREE.Group(); root.add(mech); mech.position.set(0, 0.40, 0); // alzato: il volano non tocca il basamento
+
+// basamento (in legno scuro) + cornice
+const base = new THREE.Mesh(new THREE.BoxGeometry(8.4, .26, 3.0), new THREE.MeshStandardMaterial({color:0x2a2118, metalness:.1, roughness:.7}));
+base.position.set(0, -2.02, 0); base.receiveShadow = true; root.add(base);
+const baseTop = new THREE.Mesh(new THREE.BoxGeometry(8.0, .04, 2.6), new THREE.MeshStandardMaterial({color:0x3a2c1d, metalness:.15, roughness:.55}));
+baseTop.position.set(0, -1.87, 0); baseTop.receiveShadow = true; root.add(baseTop);
+
+// cavalletti di supporto dell'albero a gomiti (dal basamento al centro manovella)
+const BASE_TOP = -1.85;            // quota superiore del basamento (in root)
+const O_Y = mech.position.y;       // quota del centro manovella (in root)
+function pillar(zPos){
+  const colH = O_Y - BASE_TOP;
+  const col = new THREE.Mesh(new THREE.BoxGeometry(.34, colH, .34), mat.gold2);
+  col.position.set(0, (O_Y + BASE_TOP)/2, zPos); col.castShadow = true; root.add(col);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.30,24), mat.steel);
+  cap.rotation.x = Math.PI/2; cap.position.set(0, O_Y, zPos); cap.castShadow = true; root.add(cap);
+}
+pillar(-0.55);     // cavalletto anteriore
+pillar( 0.62);     // cavalletto posteriore (tra perni e volano)
+
+/* ---- volano + manovella (su piano assiale sfalsato) ---- */
+const flywheel = new THREE.Group(); mech.add(flywheel);          // ruota (gira)
+flywheel.position.z = Z_FLY;
+flywheel.add(new THREE.Mesh(new THREE.TorusGeometry(2.12, .13, 32, 160), mat.gold));
+flywheel.add(new THREE.Mesh(new THREE.TorusGeometry(1.86, .04, 18, 120), mat.gold2));
+{ const hub = new THREE.Mesh(new THREE.CylinderGeometry(.30, .30, .40, 48), mat.gold); hub.rotation.x = Math.PI/2; flywheel.add(hub); }
+for (let i=0;i<6;i++){ const g=new THREE.Group(); g.rotation.z=i*Math.PI/3; const s=new THREE.Mesh(new THREE.BoxGeometry(1.86,.06,.06),mat.gold); s.position.x=.95; g.add(s); flywheel.add(g); }
+
+// albero a gomiti lungo z (dai perni fino al volano)
+const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.12,.12, Z_FLY+0.9, 24), mat.steel);
+shaft.rotation.x = Math.PI/2; shaft.position.z = (Z_FLY-0.45)/2; mech.add(shaft);
+
+// perni di manovella, bracci e contrappesi (posizionati ad ogni frame)
+const pinHotMesh  = new THREE.Mesh(new THREE.CylinderGeometry(.10,.10,.32,24), mat.steel); pinHotMesh.rotation.x = Math.PI/2; mech.add(pinHotMesh);
+const pinColdMesh = new THREE.Mesh(new THREE.CylinderGeometry(.10,.10,.32,24), mat.steel); pinColdMesh.rotation.x = Math.PI/2; mech.add(pinColdMesh);
+const armH = new THREE.Mesh(new THREE.BoxGeometry(1,.20,.12), mat.steel); mech.add(armH);
+const armC = new THREE.Mesh(new THREE.BoxGeometry(1,.20,.12), mat.steel); mech.add(armC);
+// contrappesi: masse opposte a ciascun perno, sul rispettivo piano di biella
+const cwH = new THREE.Mesh(new THREE.CylinderGeometry(.42,.42,.16,28,1,false,0,Math.PI), mat.steel); cwH.rotation.x = Math.PI/2; mech.add(cwH);
+const cwC = new THREE.Mesh(new THREE.CylinderGeometry(.42,.42,.16,28,1,false,0,Math.PI), mat.steel); cwC.rotation.x = Math.PI/2; mech.add(cwC);
+
+/* ---- assieme cilindro ----
+   Gruppo a O, ruotato dell'angolo d'asse; componenti lungo +x = versore asse. */
+function buildCylinder(axisAngle, hot){
+  const g = new THREE.Group(); g.rotation.z = axisAngle; mech.add(g);
+
+  // canna in vetro
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(.46,.46,1.85,64,1,true), glass);
+  barrel.rotation.z = Math.PI/2; barrel.position.x = 1.95; g.add(barrel);
+  // testa chiusa
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.22,48), mat.gold);
+  head.rotation.z = Math.PI/2; head.position.x = S_HEAD + .05; g.add(head);
+  // flangia lato manovella
+  const flange = new THREE.Mesh(new THREE.CylinderGeometry(.58,.58,.22,48), mat.gold);
+  flange.rotation.z = Math.PI/2; flange.position.x = 1.02; g.add(flange);
+
+  if (hot){
+    // fascia riscaldante (emissiva) vicino alla testa
+    const band = new THREE.Mesh(new THREE.TorusGeometry(.52,.07,20,64), mat.heat);
+    band.rotation.y = Math.PI/2; band.position.x = 2.45; g.add(band);
+  } else {
+    // alette di raffreddamento (dissipatore) vicino alla testa
+    for (let i=0;i<10;i++){ const f=new THREE.Mesh(new THREE.CylinderGeometry(.72,.72,.035,48),mat.steel); f.rotation.z=Math.PI/2; f.position.x=2.18+i*.09; g.add(f); }
+  }
+  // pistone
+  const pist = new THREE.Mesh(new THREE.CylinderGeometry(.43,.43,PIST_H,48), hot?mat.hotP:mat.coldP);
+  pist.rotation.z = Math.PI/2; g.add(pist);
+  return {g, pist, axis:hot?uHot:uCold, axisAngle, hot};
+}
+const HOT  = buildCylinder(AX_HOT,  true);
+const COLD = buildCylinder(AX_COLD, false);
+
+// luce/bagliore del riscaldatore
+const heatGlow = new THREE.PointLight(0xff3618, 0, 7);
+heatGlow.position.set(S_HEAD*uHot.x, S_HEAD*uHot.y, 0); mech.add(heatGlow);
+
+/* ---- condotto di vetro che scavalca le due teste ---- */
+const headHot  = {x:S_HEAD*uHot.x,  y:S_HEAD*uHot.y};
+const headCold = {x:S_HEAD*uCold.x, y:S_HEAD*uCold.y};
+const tubeCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(headHot.x,  headHot.y,  0),
+  new THREE.Vector3(-1.0, 3.05, 0),
+  new THREE.Vector3( 0.0, 3.28, 0),
+  new THREE.Vector3( 1.0, 3.05, 0),
+  new THREE.Vector3(headCold.x, headCold.y, 0)
+]);
+mech.add(new THREE.Mesh(new THREE.TubeGeometry(tubeCurve, 120, .14, 24), glass));
+
+/* ---- bielle ---- */
+const rodGeo = new THREE.BoxGeometry(1, .085, .085);
+const rodH = new THREE.Mesh(rodGeo, mat.gold);
+const rodC = new THREE.Mesh(rodGeo, mat.gold);
+mech.add(rodH, rodC);
+const _xAxis = new THREE.Vector3(1,0,0);
+function placeRod(rod, ax, ay, az, bx, by, bz){
+  const dx=bx-ax, dy=by-ay, dz=bz-az;
+  const len = Math.sqrt(dx*dx+dy*dy+dz*dz) || 1e-6;
+  rod.position.set((ax+bx)/2,(ay+by)/2,(az+bz)/2);
+  rod.scale.set(len,1,1);
+  rod.quaternion.setFromUnitVectors(_xAxis, new THREE.Vector3(dx/len,dy/len,dz/len));
+}
+
+// ombre: i componenti metallici proiettano ombra (il vetro no)
+mech.traverse(o=>{ if(o.isMesh && o.material!==glass){ o.castShadow = true; o.receiveShadow = true; } });
+
+/* =========================================================
+   GAS: particelle (popolazione ~ volume istantaneo) + flusso nel condotto
+   ========================================================= */
+const sg = new THREE.SphereGeometry(.035, 10, 8);
+const pg = new THREE.Group(); mech.add(pg);
+let particles = [];
+function rebuild(n){
+  pg.clear(); particles = [];
+  for (let i=0;i<n;i++){
+    particles.push({
+      me: new THREE.Mesh(sg, gasM[0]),
+      rank: Math.random(),         // determina in quale spazio risiede
+      g: Math.random(),            // posizione assiale entro la colonna di gas
+      rad: Math.random(),          // raggio entro il cilindro
+      ang: Math.random()*6.283     // angolo radiale
+    });
+    pg.add(particles[particles.length-1].me);
+  }
+}
+rebuild(160);
+// flusso visibile lungo il condotto
+const flow = [];
+for (let i=0;i<90;i++){
+  const me = new THREE.Mesh(new THREE.SphereGeometry(.026,8,6), gasM[3]);
+  pg.add(me); flow.push({me, u:Math.random()});
+}
+
+/* =========================================================
+   STATO TERMODINAMICO (Schmidt) e CICLO IDEALE
+   ========================================================= */
+function volumes(theta, phase){
+  const wH = pinAt(theta + PHI_H);
+  const wC = pinAt(theta + PHI_H + phase);
+  const sH = slide(uHot,  wH, LpH);
+  const sC = slide(uCold, wC, LpC);
+  const Vh = Math.max(CLEAR, S_HEAD - (sH + PIST_H/2));
+  const Vc = Math.max(CLEAR, S_HEAD - (sC + PIST_H/2));
+  return {sH, sC, wH, wC, Vh, Vc};
+}
+// pressione di Schmidt (temperatura-media): p = C / (Vh/TH + Vc/TL + Vreg/Treg)
+function schmidt(theta, phase, THk, TLk){
+  const v = volumes(theta, phase);
+  const Treg = (THk + TLk) / 2;
+  const denom = v.Vh/THk + v.Vc/TLk + V_REG/Treg;
+  const p = 1 / denom;                 // costante C assorbita nella scala del grafico
+  return {Vtot: v.Vh + v.Vc + V_REG, p};
+}
+// angolo di manovella in cui il volume caldo è massimo (origine del ciclo ideale)
+let expansionAngle = 0;
+function findExpansion(phase){
+  let best=-1, ba=0;
+  for (let i=0;i<360;i++){ const a=i/360*2*Math.PI; const Vh=volumes(a,phase).Vh; if(Vh>best){best=Vh; ba=a;} }
+  expansionAngle = ba;
+}
+
+// ciclo Stirling IDEALE per il piano T-s (Fig. 9 del PDF).
+// ATTENZIONE: i tratti 2->3 e 4->1 sono a VOLUME costante, NON isentropici:
+//   per gas ideale a v=cost  ds = c_v dT/T  ->  s = s0 + c_v ln(T/T0)  (curve, non verticali).
+const CV_R = 2.5;      // c_v/R per gas biatomico (aria, gamma = 1.4)
+const RV   = 2.0;      // rapporto volumetrico v2/v1 assunto per il disegno
+function idealTS(ac, r){              // r = T_L/T_H  (in Kelvin)
+  ac = (ac % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
+  const q = Math.PI/2;
+  const dsT = Math.log(RV);           // variazione di s nelle isoterme
+  const dsV = CV_R * Math.log(1/r);   // variazione di s nelle isocore (rigenerazione)
+  let seg,t,T,s,name;
+  if (ac < q)        { seg=0; t=ac/q;       T=1;            s=dsT*t;
+                       name='1\u21922 Espansione isoterma a T_H (calore assorbito)'; }
+  else if (ac < 2*q) { seg=1; t=(ac-q)/q;   T=1+(r-1)*t;    s=dsT + CV_R*Math.log(T);
+                       name='2\u21923 Raffreddamento isocoro \u2192 rigeneratore'; }
+  else if (ac < 3*q) { seg=2; t=(ac-2*q)/q; T=r;            s=(dsT-dsV) - dsT*t;
+                       name='3\u21924 Compressione isoterma a T_L (calore ceduto)'; }
+  else               { seg=3; t=(ac-3*q)/q; T=r+(1-r)*t;    s=-dsV + CV_R*Math.log(T/r);
+                       name='4\u21921 Riscaldamento isocoro \u2190 rigeneratore'; }
+  return {T,s,seg,name};
+}
+
+// ciclo Stirling IDEALE per il piano p-V (Fig. 9): isoterme iperboliche + isocore verticali.
+// mR = 1, V1 = 1, T_H = 1, T_L = r ; quindi  p = T/V.
+function idealPV(ac, r){
+  ac = (ac % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
+  const q = Math.PI/2, V1 = 1, V2 = RV;
+  let V,P;
+  if (ac < q)        { const t=ac/q;       V=V1+(V2-V1)*t; P=1/V; }             // 1->2 isoterma T_H
+  else if (ac < 2*q) { const t=(ac-q)/q;   V=V2;           P=(1+(r-1)*t)/V2; }  // 2->3 isocora V2
+  else if (ac < 3*q) { const t=(ac-2*q)/q; V=V2+(V1-V2)*t; P=r/V; }             // 3->4 isoterma T_L
+  else               { const t=(ac-3*q)/q; V=V1;           P=r+(1-r)*t; }       // 4->1 isocora V1
+  return {V,P};
+}
+
+/* =========================================================
+   UI / PARAMETRI
+   ========================================================= */
+let params = {heat:8, phase:90, load:22, gas:true, glass:true, plot:true};
+let theta = 0, paused = false, view = 0, mode = 'pv';
+function upd(){
+  params.heat=+$('heat').value; params.phase=+$('phase').value; params.load=+$('load').value;
+  $('heatL').textContent = params.heat<3 ? 'OFF' : params.heat+'%';
+  $('phaseL').textContent = params.phase+'\u00B0';
+  $('loadL').textContent  = params.load+'%';
+  $('partL').textContent  = $('parts').value;
+  if (+$('parts').value !== particles.length) rebuild(+$('parts').value);
+  findExpansion(THREE.MathUtils.degToRad(params.phase));
+}
+['heat','phase','load','parts'].forEach(i=> $(i).oninput = upd);
+upd();
+
+function sw(id,k,cb){ $(id).onclick=()=>{ $(id).classList.toggle('on'); params[k]=$(id).classList.contains('on'); if(cb)cb(); }; }
+sw('gasSw','gas');
+sw('glassSw','glass',()=>{ glass.opacity = params.glass?.30:.10; glass.transmission = params.glass?.6:0; });
+sw('plotSw','plot',()=>{ $('thermo').style.display = params.plot?'block':'none'; });
+
+$('pause').onclick = ()=>{ paused=!paused; $('pause').textContent = paused?'AVVIA':'PAUSA'; };
+$('reset').onclick = ()=> theta=0;
+$('cam').onclick   = ()=>{ view=(view+1)%3;
+  if(view===0) camera.position.set(0,1.4,12.8);
+  if(view===1) camera.position.set(0,0.6,9.8);
+  if(view===2) camera.position.set(8,4.5,9);
+  controls.target.set(0,0.85,0); };
+function setm(m){ mode=m; ['pv','ts','both'].forEach(i=>$(i).classList.toggle('active',i===m)); }
+$('pv').onclick=()=>setm('pv'); $('ts').onclick=()=>setm('ts'); $('both').onclick=()=>setm('both');
+
+/* =========================================================
+   GRAFICO TERMODINAMICO
+   ========================================================= */
+let prevVh = 0;
+function drawPlot(THk, TLk){
+  const c=$('plot'), ctx=c.getContext('2d'), w=c.width, h=c.height;
+  const phase = THREE.MathUtils.degToRad(params.phase);
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(0,0,w,h);
+
+  function axes(xl,yl){
+    ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.lineWidth=2; ctx.strokeRect(55,30,w-95,h-80);
+    ctx.fillStyle='#aeb5c8'; ctx.font='20px Arial';
+    ctx.fillText(xl, w-42, h-34); ctx.fillText(yl, 22, 26);
+  }
+  function dot(X,Y,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(X,Y,7,0,7); ctx.fill(); }
+  function label(X,Y,txt){ ctx.fillStyle='#fff'; ctx.font='bold 15px Arial';
+    ctx.fillStyle='rgba(0,0,0,.6)'; ctx.beginPath(); ctx.arc(X,Y,11,0,7); ctx.fill();
+    ctx.fillStyle='#ffe39a'; ctx.fillText(txt, X-4, Y+5); }
+
+  // --- ciclo Stirling IDEALE nel piano p-V (Fig. 9): isoterme iperboliche + isocore verticali ---
+  function drawPV(x0,wid){
+    const r = TLk/THk;
+    const N=240; const pts=[]; let vmin=1e9,vmax=-1e9,pmin=1e9,pmax=-1e9;
+    for(let i=0;i<=N;i++){ const st=idealPV(i/N*2*Math.PI, r);
+      pts.push(st); vmin=Math.min(vmin,st.V); vmax=Math.max(vmax,st.V); pmin=Math.min(pmin,st.P); pmax=Math.max(pmax,st.P); }
+    pmin=0; // origine a p=0 per leggibilità (come in figura)
+    const vden=(vmax-vmin)||1, pden=(pmax-pmin)||1;
+    const mapx=v=> x0+55 + (v-vmin)/vden*(wid-95);
+    const mapy=p=> h-50 - (p-pmin)/pden*(h-80);
+    ctx.save(); ctx.translate(x0,0); axes('V','p'); ctx.restore();
+    ctx.beginPath();
+    for(let i=0;i<=N;i++){ const X=mapx(pts[i].V), Y=mapy(pts[i].P); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); }
+    ctx.closePath();
+    ctx.strokeStyle='#d8ad4d'; ctx.lineWidth=3.2; ctx.shadowColor='rgba(216,173,77,.5)'; ctx.shadowBlur=10; ctx.stroke(); ctx.shadowBlur=0;
+    // etichette di processo come in figura
+    ctx.fillStyle='#ff8a7a'; ctx.font='12px Arial';
+    ctx.fillText('T_H = cost', mapx(1.45), mapy(0.78));
+    ctx.fillStyle='#8fe6ff'; ctx.fillText('T_L = cost', mapx(1.30), mapy(0.16));
+    ctx.fillStyle='#9aa3b8'; ctx.fillText('rigenerazione', mapx(1.32), mapy(0.45));
+    for(let k=0;k<4;k++){ const st=idealPV(k*Math.PI/2, r); label(mapx(st.V), mapy(st.P), String(k+1)); }
+    const cur=idealPV(theta-expansionAngle, r); dot(mapx(cur.V), mapy(cur.P), '#fff');
+  }
+  // --- ciclo Stirling IDEALE nel piano T-s (isocore CURVE) ---
+  function drawTS(x0,wid){
+    const r = TLk/THk;
+    const N=240; const pts=[]; let smin=1e9,smax=-1e9;
+    for(let i=0;i<=N;i++){ const st=idealTS(i/N*2*Math.PI, r); pts.push(st); smin=Math.min(smin,st.s); smax=Math.max(smax,st.s); }
+    const sden=(smax-smin)||1, tden=(1-r)||1;
+    const mapx=s=> x0+55 + (s-smin)/sden*(wid-95);
+    const mapy=T=> h-50 - (T-r)/tden*(h-80);
+    ctx.save(); ctx.translate(x0,0); axes('s','T'); ctx.restore();
+    // isoterme di riferimento T_H (alto) e T_L (basso)
+    ctx.setLineDash([5,5]); ctx.strokeStyle='rgba(255,90,60,.5)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(mapx(smin),mapy(1)); ctx.lineTo(mapx(smax),mapy(1)); ctx.stroke();
+    ctx.strokeStyle='rgba(110,234,255,.5)';
+    ctx.beginPath(); ctx.moveTo(mapx(smin),mapy(r)); ctx.lineTo(mapx(smax),mapy(r)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#ff8a7a'; ctx.font='12px Arial'; ctx.fillText('T_H', mapx(smin)+4, mapy(1)-6);
+    ctx.fillStyle='#8fe6ff'; ctx.fillText('T_L', mapx(smin)+4, mapy(r)+16);
+    // ciclo
+    ctx.beginPath();
+    for(let i=0;i<=N;i++){ const X=mapx(pts[i].s),Y=mapy(pts[i].T); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); }
+    ctx.strokeStyle='#48dcff'; ctx.lineWidth=3.2; ctx.shadowColor='rgba(72,220,255,.45)'; ctx.shadowBlur=10; ctx.stroke(); ctx.shadowBlur=0;
+    for(let k=0;k<4;k++){ const st=idealTS(k*Math.PI/2, r); label(mapx(st.s), mapy(st.T), String(k+1)); }
+    // etichette di processo come in figura
+    const sMid=(smin+smax)/2;
+    ctx.fillStyle='#9aa3b8'; ctx.font='12px Arial';
+    ctx.fillText('rigenerazione', mapx(sMid)-30, mapy((1+r)/2));
+    ctx.fillStyle='#ff8a7a'; ctx.fillText('q_in', mapx(sMid)-10, mapy(1)-6);
+    ctx.fillStyle='#8fe6ff'; ctx.fillText('q_out', mapx(sMid)-12, mapy(r)+16);
+    const cur=idealTS(theta-expansionAngle, r); dot(mapx(cur.s), mapy(cur.T), '#fff');
+  }
+
+  if (mode==='pv')      drawPV(0, w);
+  else if (mode==='ts') drawTS(0, w);
+  else { ctx.save(); ctx.beginPath(); ctx.rect(0,0,w/2,h); ctx.clip(); drawPV(0, w/2); ctx.restore();
+         ctx.save(); ctx.beginPath(); ctx.rect(w/2,0,w/2,h); ctx.clip(); drawTS(w/2, w/2); ctx.restore(); }
+
+  $('phName').textContent = idealTS(theta-expansionAngle, TLk/THk).name;
+}
+
+/* =========================================================
+   LOOP DI ANIMAZIONE
+   ========================================================= */
+// ---- dinamica rotazionale del volano ----
+const I_FLY = 0.55;        // momento d'inerzia equivalente del volano
+const C_DRIVE = 2.1;       // guadagno coppia motrice (calore -> coppia)
+const C_F0 = 0.14;         // attrito secco (coppia di soglia)
+const C_VISC = 0.05;       // attrito viscoso intrinseco
+const C_LOAD = 0.06;       // attrito viscoso aggiuntivo dal carico
+let omega = 0;             // velocità angolare [rad/s]
+const DT = 1/60;
+
+const _v3 = new THREE.Vector3();
+function anim(){
+  requestAnimationFrame(anim);
+  const heat = params.heat/100, load = params.load/100;
+  const phase = THREE.MathUtils.degToRad(params.phase);
+
+  // termodinamica
+  const TH = 20 + heat*430;                 // °C lato caldo
+  const TL = 20 + heat*4;                    // °C lato freddo (dissipatore)
+  const THk = TH+273.15, TLk = TL+273.15;
+  const eta = Math.max(0,(1 - TLk/THk)*100); // rendimento di Carnot/Stirling
+
+  // coppia motrice: proporzionale al calore e al rendimento (nulla sotto soglia di accensione)
+  const tauDrive = (heat < 0.03) ? 0 : C_DRIVE * heat * (eta/100 + 0.25);
+  // coppia resistente: attrito secco (solo se in moto) + viscoso(omega)
+  const tauFric  = (omega>1e-3 ? C_F0 : 0) + (C_VISC + C_LOAD*load) * omega;
+  if (!paused){
+    omega += (tauDrive - tauFric)/I_FLY * DT;
+    if (omega < 0) omega = 0;                // non gira all'indietro
+    theta += omega * DT;
+  }
+  const rpm = omega/(2*Math.PI)*60;
+
+  $('rpm').textContent = Math.round(rpm);
+  $('eta').textContent = eta.toFixed(1);
+  $('th').textContent  = Math.round(TH);
+  $('tl').textContent  = Math.round(TL);
+
+  // cinematica
+  flywheel.rotation.z = theta;
+  const v = volumes(theta, phase);
+  HOT.pist.position.x  = v.sH;
+  COLD.pist.position.x = v.sC;
+
+  // perni e bracci di manovella
+  pinHotMesh.position.set(v.wH.x, v.wH.y, ZH);
+  pinColdMesh.position.set(v.wC.x, v.wC.y, ZC);
+  placeRod(armH, 0, 0, ZH, v.wH.x, v.wH.y, ZH);
+  placeRod(armC, 0, 0, ZC, v.wC.x, v.wC.y, ZC);
+  // contrappesi: massa opposta a ciascun perno (radialmente, sullo stesso piano)
+  cwH.position.set(-0.55*v.wH.x/R, -0.55*v.wH.y/R, ZH);
+  cwC.position.set(-0.55*v.wC.x/R, -0.55*v.wC.y/R, ZC);
+
+  // bielle (perno -> spinotto pistone)
+  const wristH = v.sH - 0.16, wristC = v.sC - 0.16;
+  placeRod(rodH, v.wH.x, v.wH.y, ZH, wristH*uHot.x,  wristH*uHot.y,  0);
+  placeRod(rodC, v.wC.x, v.wC.y, ZC, wristC*uCold.x, wristC*uCold.y, 0);
+
+  // riscaldatore
+  heatGlow.intensity = heat*3.2;
+  mat.heat.emissiveIntensity = 0.25 + heat*1.6;
+
+  // ---- GAS: popolazione proporzionale ai volumi ----
+  const Vtot = v.Vh + v.Vc + V_REG;
+  const fHot = v.Vh/Vtot, fCold = v.Vc/Vtot;
+  const perp = (u)=>({x:-u.y, y:u.x});
+  const pH = perp(uHot), pC = perp(uCold);
+  const faceH = v.sH + PIST_H/2, faceC = v.sC + PIST_H/2;
+  particles.forEach(p=>{
+    p.me.visible = params.gas;
+    if (p.rank < fHot){                       // nel cilindro caldo
+      const s = faceH + (S_HEAD - faceH)*p.g;
+      const r = (p.rad-0.5)*0.7;
+      _v3.set(s*uHot.x + pH.x*r, s*uHot.y + pH.y*r, Math.sin(p.ang+theta)*0.18);
+      p.me.material = gasM[0];
+    } else if (p.rank < fHot+fCold){          // nel cilindro freddo
+      const s = faceC + (S_HEAD - faceC)*p.g;
+      const r = (p.rad-0.5)*0.7;
+      _v3.set(s*uCold.x + pC.x*r, s*uCold.y + pC.y*r, Math.cos(p.ang+theta)*0.18);
+      p.me.material = gasM[1];
+    } else {                                  // nel condotto/rigeneratore
+      const t = (p.rank - fHot - fCold)/Math.max(1e-3,(1-fHot-fCold));
+      const q = tubeCurve.getPoint(t); _v3.set(q.x, q.y, q.z + (p.rad-0.5)*0.12);
+      p.me.material = gasM[2];
+    }
+    p.me.position.copy(_v3);
+    p.me.scale.setScalar(0.8 + heat*0.4);
+  });
+
+  // ---- flusso nel condotto (verso = senso del trasferimento) ----
+  const dir = (v.Vh < prevVh) ? 1 : -1;       // gas caldo->freddo se Vh cala
+  prevVh = v.Vh;
+  const spd = 0.004 + heat*0.02;
+  flow.forEach((s,i)=>{
+    s.me.visible = params.gas;
+    s.u = (s.u + dir*spd + 1) % 1;
+    const q = tubeCurve.getPoint(s.u);
+    s.me.position.set(q.x, q.y, q.z + Math.sin(theta*2+i)*0.05);
+  });
+
+  controls.update();
+  drawPlot(THk, TLk);
+  renderer.render(scene, camera);
+}
+findExpansion(THREE.MathUtils.degToRad(params.phase));
+anim();
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+
+</body></html>
